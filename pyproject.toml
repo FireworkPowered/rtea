@@ -24,11 +24,12 @@ dynamic = ["version"]
 
 [build-system]
 build-backend = "maturin"
-requires = ["maturin>=0.14,<0.15"]
+requires = ["maturin>1.7.0"]
 
 [tool.maturin]
 sdist-include = ["Cargo.lock"]
 strip = true
+features = ["extension-module", "norand", "fillzero"]
 
 [tool.black]
 line-length = 120

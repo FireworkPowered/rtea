@@ -51,8 +51,8 @@ impl QQTea {
         let fill_count = Self::estimate_ciphertext_padding_length(data.len());
 
         out[0] = (fill_count as u8 - 2) | 0xF8;
-        if cfg!(debug_assertions) {
-            // test with standard pytea, filling with 220
+
+        if cfg!(feature = "norand") {
             out[1..fill_count + 1].fill(220);
         } else {
             thread_rng().fill_bytes(&mut out[1..fill_count + 1]);
@@ -61,6 +61,10 @@ impl QQTea {
         // make borrow checker happy
         let out_len = out.len();
         out[fill_count + 1..out_len - 7].copy_from_slice(data);
+
+        if cfg!(feature = "fillzero") {
+            out[out_len - 7..out_len].fill(0);
+        }
 
         let mut iv1 = 0u64;
         let mut iv2 = 0u64;

@@ -17,12 +17,14 @@ crate-type = ["cdylib", "rlib"]
 rand = "0.8"
 
 [dependencies.pyo3]
-version = "0.18"
-features = ["abi3-py37"]
+version = "0.22.6"
+features = ["extension-module", "gil-refs"]
 
 [features]
 extension-module = ["pyo3/extension-module"]
 default = ["extension-module"]
+norand = []
+fillzero = []
 
 [profile.release]
 codegen-units = 1

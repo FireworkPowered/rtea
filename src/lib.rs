@@ -1,14 +1,10 @@
 // publish internal modules for test/bench.
+use pyo3::types::PyModuleMethods;
 pub mod block;
 pub mod tea;
 
 use block::QQTea;
-use pyo3::{
-    exceptions::{PyRuntimeError, PyValueError},
-    pyfunction, pymodule,
-    types::{PyBytes, PyModule},
-    wrap_pyfunction, PyResult, Python,
-};
+use pyo3::{exceptions::{PyRuntimeError, PyValueError}, pyfunction, pymodule, types::{PyBytes, PyModule}, wrap_pyfunction, Bound, PyResult, Python};
 
 #[pyfunction]
 fn is_debug() -> bool {
@@ -28,7 +24,10 @@ fn tea16_encrypt<'a>(py: Python<'a>, data: &'a [u8], key: &'a [u8]) -> PyResult<
 
     let data = tea::tea16_encrypt(*data, *key);
 
-    Ok(PyBytes::new(py, &data))
+    Ok(
+        PyBytes::new_bound(py, &data)
+            .into_gil_ref()
+    )
 }
 
 /// tea16_decrypt(text:bytes, key:bytes) -> bytes
@@ -44,7 +43,7 @@ fn tea16_decrypt<'a>(py: Python<'a>, data: &'a [u8], key: &'a [u8]) -> PyResult<
 
     let data = tea::tea16_decrypt(*data, *key);
 
-    Ok(PyBytes::new(py, &data))
+    Ok(PyBytes::new_bound(py, &data).into_gil_ref())
 }
 
 /// qqtea_encrypt(text:bytes, key:bytes) -> bytes
@@ -59,7 +58,7 @@ fn qqtea_encrypt<'a>(py: Python<'a>, data: &'a [u8], key: &'a [u8]) -> PyResult<
 
     let cipher = QQTea::new(*key);
 
-    PyBytes::new_with(
+    PyBytes::new_bound_with(
         py,
         QQTea::estimate_ciphertext_size(data.len()),
         |buf| match cipher.encrypt_inout(data, buf) {
@@ -68,7 +67,7 @@ fn qqtea_encrypt<'a>(py: Python<'a>, data: &'a [u8], key: &'a [u8]) -> PyResult<
                 "insufficient output buffer, this is a internal error, and should not happen",
             )),
         },
-    )
+    ).map(|x| x.into_gil_ref())
 }
 
 /// qqtea_decrypt(text:bytes, key:bytes) -> bytes
@@ -86,7 +85,7 @@ fn qqtea_decrypt<'a>(py: Python<'a>, data: &'a [u8], key: &'a [u8]) -> PyResult<
     let mut plaintext_range = None;
 
     // use Python arena for faster allocation
-    let temp_bytes = PyBytes::new_with(py, data.len(), |buf| {
+    let temp_bytes = PyBytes::new_bound_with(py, data.len(), |buf| {
         buf.copy_from_slice(data);
 
         plaintext_range = Some(
@@ -98,12 +97,12 @@ fn qqtea_decrypt<'a>(py: Python<'a>, data: &'a [u8], key: &'a [u8]) -> PyResult<
         Ok(())
     })?;
 
-    Ok(PyBytes::new(py, &temp_bytes[plaintext_range.unwrap()]))
+    Ok(PyBytes::new_bound(py, &temp_bytes[plaintext_range.unwrap()]).into_gil_ref())
 }
 
 #[pymodule]
 /// A Python module implemented in Rust.
-fn rtea(_py: Python, m: &PyModule) -> PyResult<()> {
+fn rtea(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(is_debug, m)?)?;
     m.add_function(wrap_pyfunction!(tea16_encrypt, m)?)?;
     m.add_function(wrap_pyfunction!(tea16_decrypt, m)?)?;
